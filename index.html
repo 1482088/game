@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>雷电战机 - 终极版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #000;
+            overflow: hidden;
+            touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: linear-gradient(180deg, #0a0e27 0%, #1a1f3a 100%);
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
+        #gameOver, #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            -webkit-transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 20;
+            border: 2px solid #4a90e2;
+            pointer-events: auto;
+        }
+        
+        #gameOver {
+            display: none;
+        }
+        
+        h1, h2 {
+            color: #4a90e2;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 10px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            touch-action: manipulation;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+            -webkit-transform: scale(0.95);
+        }
+        
+        p {
+            color: #fff;
+            margin: 10px 0;
+        }
+        
+        #bossWarning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            -webkit-transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255,0,0,0.8);
+            display: none;
+            z-index: 25;
+            animation: pulse 0.5s infinite;
+            -webkit-animation: pulse 0.5s infinite;
+            pointer-events: none;
+        }
+        
+        .weapon-indicator {
+            font-weight: bold;
+        }
+        
+        .normal-weapon { color: #ffeb3b; }
+        .laser-weapon { color: #00ffff; }
+        .tracking-weapon { color: #ff00ff; }
+        
+        .laser-cooldown {
+            color: #ff4444 !important;
+            animation: blink 0.3s infinite;
+            -webkit-animation: blink 0.3s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @-webkit-keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        @-webkit-keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="canvas"></canvas>
+        <div id="ui">
+            <div>分数: <span id="score">0</span></div>
+            <div>血量: <span id="hp">3</span>/<span id="maxHp">3</span></div>
+            <div>武器: <span id="weaponType">普通弹</span></div>
+            <div>弹道: <span id="bulletLvl">1</span>/7</div>
+            <div>攻速: <span id="fireRate">50</span>%</div>
+            <div>僚机: <span id="wingman">0</span>/6</div>
+            <div>波数: <span id="wave">1</span></div>
+            <div id="laserStatus" style="display:none;">激光冷却: <span id="laserCooldown">0</span>s</div>
+        </div>
+        <div id="startScreen">
+            <h1>雷电战机</h1>
+            <p>击败精英和BOSS获得升级</p>
+            <p>普通弹 → 激光 → 跟踪激光</p>
+            <button id="startBtn" type="button">开始游戏</button>
+        </div>
+        <div id="gameOver">
+            <h2>游戏结束</h2>
+            <p>最终分数: <span id="finalScore">0</span></p>
+            <p>到达波数: <span id="finalWave">1</span></p>
+            <button id="restartBtn" type="button">重新开始</button>
+        </div>
+        <div id="bossWarning">BOSS 来袭！</div>
+    </div>
+    
+    <script>
+        // iOS兼容性检测
+        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // 确保页面完全加载后初始化
+        window.addEventListener('load', function() {
+            initGame();
+        });
+        
+        function initGame() {
+            var canvas = document.getElementById('canvas');
+            var ctx = canvas.getContext('2d', { 
+                alpha: false,
+                desynchronized: true,
+                willReadFrequently: false,
+                imageSmoothingEnabled: false  // 添加：禁用图像平滑以提高性能
+            });
+            
+            // 设置Canvas尺寸
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            
+            // 星空背景
+            var stars = [];
+            var starCount = isMobile ? 25 : 50;  // 移动端减少星星数量
+            for(var i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: Math.random() * 2 + 0.5
+                });
+            }
+            
+            // 武器类型
+            var WEAPON_TYPES = {
+                NORMAL: 'normal',
+                LASER: 'laser',
+                TRACKING: 'tracking'
+            };
+            
+            // 伤害倍率（全局调整为0.65）
+            var DAMAGE_MULTIPLIER = 0.65;
+            
+            // 游戏状态
+            var game = {
+                running: false,
+                score: 0,
+                wave: 1,
+                time: 0,
+                enemyTimer: 0,
+                shootTimer: 0,
+                waveEnemies: 0,
+                maxWaveEnemies: 10,
+                bossActive: false,
+                frameCount: 0,  // 添加：帧计数器用于调试
+                fps: 60         // 添加：当前FPS
+            };
+            
+            // 玩家
+            var player = {
+                x: canvas.width/2 - 20,
+                y: canvas.height - 100,
+                w: 40,
+                h: 50,
+                hp: 3,
+                maxHp: 3,
+                bulletLvl: 1,
+                fireRate: 0.5,  // 修改：初始攻速改为0.5（原来的50%）
+                wingmanCount: 0,
+                invulnerable: 0,
+                damage: 1,
+                weaponType: WEAPON_TYPES.NORMAL,
+                laserActive: false,
+                laserTimer: 0,
+                laserCooldown: 0,
+                laserCycleTimer: 0
+            };
+            
+            // 数组
+            var bullets = [];
+            var enemies = [];
+            var enemyBullets = [];
+            var powerups = [];
+            var particles = [];
+            var wingmen = [];
+            var lasers = [];
+            var trackingLasers = [];
+            var missiles = [];
+            
+            // 敌机类型配置
+            var enemyTypes = {
+                normal: {w:35, h:40, speed:2, hp:1, color:'#8844ff', score:100},
+                shooter: {w:40, h:45, speed:1.5, hp:2, color:'#ff8844', score:200, canShoot:true, shootInterval:80},
+                elite: {w:55, h:60, speed:1.2, hp:5, color:'#ff4444', score:500, canShoot:true, dropRate:0.8, shootInterval:120},
+                boss: {w:100, h:120, speed:0.5, hp:40, color:'#ff0000', score:2000, canShoot:true, dropRate:1, shootInterval:40}  // 修改：Boss血量翻倍从20改为40
+            };
+            
+            // 创建子弹（普通弹）
+            function createBullet(x, y, angle, dmg, isPlayer) {
+                if(isPlayer === undefined) isPlayer = true;
+                var bullet = {
+                    x: x,
+                    y: y,
+                    vx: Math.sin(angle) * (isPlayer ? 12 : 4),  // 降低玩家子弹速度从18到12
+                    vy: (isPlayer ? -1 : 1) * Math.cos(angle) * (isPlayer ? 12 : 4),
+                    w: 8,  // 增大子弹尺寸让其更明显
+                    h: 14,
+                    damage: dmg * (isPlayer ? 1.5 : 1) * DAMAGE_MULTIPLIER,
+                    isPlayer: isPlayer,
+                    trail: []  // 移动端会简化拖尾
+                };
+                bullets.push(bullet);
+            }
+            
+            // 创建持续激光（不再是闪烁的）
+            function updateLasers() {
+                // 清除旧激光
+                lasers = [];
+                
+                // 如果激光武器激活且不在冷却
+                if(player.weaponType === WEAPON_TYPES.LASER && player.laserCooldown === 0) {
+                    var angleStep = Math.PI / 8;
+                    var start = -(player.bulletLvl - 1) * angleStep / 2;
+                    var damageMultiplier = (0.4 + (player.fireRate - 1) * 0.2) * DAMAGE_MULTIPLIER;
+                    
+                    // 呼吸效果
+                    var breathe = Math.sin(game.time * 0.1) * 0.3 + 1;
+                    
+                    // 修改：激光宽度随攻速增加
+                    var widthMultiplier = 1 + (player.fireRate - 0.5) * 0.3;  // 攻速从0.5开始，每点攻速增加30%宽度
+                    
+                    for(var i = 0; i < player.bulletLvl; i++) {
+                        var angle = start + i * angleStep;
+                        var endX = player.x + player.w/2 + Math.sin(angle) * canvas.height;
+                        var endY = player.y - Math.cos(angle) * canvas.height;
+                        
+                        lasers.push({
+                            x1: player.x + player.w/2,
+                            y1: player.y,
+                            x2: endX,
+                            y2: endY,
+                            angle: angle,
+                            damage: player.damage * damageMultiplier,
+                            width: (8 + player.bulletLvl) * breathe * widthMultiplier,  // 加入攻速影响
+                            breathe: breathe
+                        });
+                    }
+                    
+                    // 僚机激光
+                    for(var j = 0; j < wingmen.length; j++) {
+                        var w = wingmen[j];
+                        if(w.hp > 0) {
+                            lasers.push({
+                                x1: w.x + 12,
+                                y1: w.y,
+                                x2: w.x + 12,
+                                y2: 0,
+                                damage: player.damage * damageMultiplier * 0.5,
+                                width: 6 * breathe * widthMultiplier,  // 加入攻速影响
+                                breathe: breathe
+                            });
+                        }
+                    }
+                    
+                    // 激光伤害
+                    for(var i = 0; i < lasers.length; i++) {
+                        var l = lasers[i];
+                        for(var j = enemies.length - 1; j >= 0; j--) {
+                            var e = enemies[j];
+                            var cx = e.x + e.w/2;
+                            var cy = e.y + e.h/2;
+                            
+                            var A = l.y2 - l.y1;
+                            var B = l.x1 - l.x2;
+                            var C = l.x2 * l.y1 - l.y2 * l.x1;
+                            var dist = Math.abs(A * cx + B * cy + C) / Math.sqrt(A * A + B * B);
+                            
+                            if(dist < l.width/2 + e.w/2) {
+                                e.hp -= l.damage;
+                                if(game.time % 3 === 0) {  // 减少粒子频率
+                                    createExplosion(cx, cy, '#00ffff', 2);
+                                }
+                                
+                                if(e.hp <= 0) {
+                                    createExplosion(cx, cy, '#ff6b6b', 15);
+                                    game.score += e.score;
+                                    document.getElementById('score').textContent = game.score;
+                                    
+                                    if(e.type === 'boss') {
+                                        game.bossActive = false;
+                                        createPowerup(cx - 15, cy, 'maxhealth');
+                                    } else if(Math.random() < e.dropRate) {
+                                        createPowerup(cx - 15, cy);
+                                    }
+                                    
+                                    enemies.splice(j, 1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 更新持续跟踪激光
+            function updateTrackingLasers() {
+                // 如果是跟踪激光武器且不在冷却
+                if(player.weaponType === WEAPON_TYPES.TRACKING) {
+                    // 保持现有跟踪激光或创建新的
+                    if(trackingLasers.length === 0 || !enemies.includes(trackingLasers[0].target)) {
+                        trackingLasers = [];
+                        var target = findNearestEnemy(player.x + player.w/2, player.y);
+                        if(target) {
+                            var damageMultiplier = 0.15 * player.bulletLvl * (1 + (player.fireRate - 1) * 0.3) * DAMAGE_MULTIPLIER;
+                            
+                            trackingLasers.push({
+                                x: player.x + player.w/2,
+                                y: player.y,
+                                target: target,
+                                damage: player.damage * damageMultiplier,
+                                points: [],
+                                widthMultiplier: 1 + (player.fireRate - 0.5) * 0.4  // 修改：加入宽度倍率
+                            });
+                        }
+                    }
+                    
+                    // 更新现有跟踪激光
+                    for(var i = trackingLasers.length - 1; i >= 0; i--) {
+                        var tl = trackingLasers[i];
+                        
+                        // 更新起点位置
+                        tl.x = player.x + player.w/2;
+                        tl.y = player.y;
+                        
+                        // 更新宽度倍率
+                        tl.widthMultiplier = 1 + (player.fireRate - 0.5) * 0.4;
+                        
+                        if(!enemies.includes(tl.target)) {
+                            tl.target = findNearestEnemy(tl.x, tl.y);
+                        }
+                        
+                        if(tl.target) {
+                            var tx = tl.target.x + tl.target.w/2;
+                            var ty = tl.target.y + tl.target.h/2;
+                            
+                            var mx = (tl.x + tx) / 2;
+                            var my = Math.min(tl.y, ty) - 100;
+                            
+                            tl.points = [];
+                            for(var t = 0; t <= 1; t += 0.05) {
+                                var tt = 1 - t;
+                                var x = tt * tt * tl.x + 2 * tt * t * mx + t * t * tx;
+                                var y = tt * tt * tl.y + 2 * tt * t * my + t * t * ty;
+                                tl.points.push({x: x, y: y});
+                            }
+                            
+                            // 持续伤害
+                            tl.target.hp -= tl.damage;
+                            if(game.time % 5 === 0) {  // 减少粒子频率
+                                createExplosion(tx, ty, '#ff00ff', 2);
+                            }
+                            
+                            if(tl.target.hp <= 0) {
+                                createExplosion(tx, ty, '#ff6b6b', 20);
+                                game.score += tl.target.score;
+                                document.getElementById('score').textContent = game.score;
+                                
+                                if(tl.target.type === 'boss') {
+                                    game.bossActive = false;
+                                    createPowerup(tx - 15, ty, 'maxhealth');
+                                } else if(Math.random() < tl.target.dropRate) {
+                                    createPowerup(tx - 15, ty);
+                                }
+                                
+                                enemies.splice(enemies.indexOf(tl.target), 1);
+                                tl.target = null;
+                            }
+                        } else {
+                            trackingLasers.splice(i, 1);
+                        }
+                    }
+                } else {
+                    trackingLasers = [];
+                }
+            }
+            
+            // 创建跟踪导弹（僚机）
+            function createMissile(x, y) {
+                var target = findNearestEnemy(x, y);
+                if(!target) return;
+                
+                missiles.push({
+                    x: x,
+                    y: y,
+                    vx: 0,
+                    vy: -5,
+                    target: target,
+                    damage: player.damage * 0.5 * DAMAGE_MULTIPLIER,  // 调整伤害
+                    life: 180,
+                    trail: []
+                });
+            }
+            
+            // 查找最近的敌人
+            function findNearestEnemy(x, y) {
+                var nearest = null;
+                var minDist = Infinity;
+                
+                for(var i = 0; i < enemies.length; i++) {
+                    var e = enemies[i];
+                    var dx = e.x + e.w/2 - x;
+                    var dy = e.y + e.h/2 - y;
+                    var dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < minDist) {
+                        minDist = dist;
+                        nearest = e;
+                    }
+                }
+                
+                return nearest;
+            }
+            
+            // 创建敌机
+            function createEnemy(type) {
+                if(!type) type = 'normal';
+                var config = enemyTypes[type];
+                var waveMultiplier = game.wave <= 25 ? (1 + game.wave * 0.2) : (1 + 25 * 0.2 + (game.wave - 25) * 0.5);
+                
+                var enemy = {
+                    x: type === 'boss' ? canvas.width/2 - config.w/2 : Math.random() * (canvas.width - config.w),
+                    y: -config.h,
+                    w: config.w,
+                    h: config.h,
+                    speed: config.speed,
+                    hp: config.hp * waveMultiplier,
+                    maxHp: config.hp * waveMultiplier,
+                    color: config.color,
+                    score: config.score,
+                    type: type,
+                    shootTimer: 0,
+                    canShoot: config.canShoot || false,
+                    dropRate: config.dropRate || 0,
+                    shootInterval: Math.max(20, config.shootInterval - Math.min(game.wave, 25))
+                };
+                enemies.push(enemy);
+            }
+            
+            // 创建道具
+            function createPowerup(x, y, forceType) {
+                var types = ['bullet', 'firerate', 'wingman', 'health', 'weapon', 'maxhealth'];
+                var colors = ['#00ff00', '#ff9800', '#2196f3', '#f44336', '#e91e63', '#9c27b0'];
+                var symbols = ['▲', '⚡', '✈', '♥', '★', '♦'];
+                
+                var type = forceType || types[Math.floor(Math.random() * types.length)];
+                var typeIndex = types.indexOf(type);
+                
+                var angle = Math.random() * Math.PI/3 - Math.PI/6;
+                
+                powerups.push({
+                    x: x,
+                    y: y,
+                    w: 30,
+                    h: 30,
+                    vx: Math.sin(angle) * 3,
+                    vy: 2,
+                    type: type,
+                    color: colors[typeIndex],
+                    symbol: symbols[typeIndex],
+                    bounces: 0
+                });
+            }
+            
+            // 创建粒子
+            function createExplosion(x, y, color, count) {
+                if(!color) color = '#ff6b6b';
+                if(!count) count = 10;
+                
+                // 移动端减少粒子数量
+                if(isMobile) {
+                    count = Math.floor(count * 0.6);
+                }
+                
+                for(var i = 0; i < count; i++) {
+                    particles.push({
+                        x: x,
+                        y: y,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
+                        life: 1,
+                        color: color,
+                        size: Math.random() * 4 + 2
+                    });
+                }
+            }
+            
+            // 玩家射击（普通弹）
+            function playerShoot() {
+                if(player.weaponType === WEAPON_TYPES.LASER && player.laserCooldown > 0) {
+                    return;
+                }
+                
+                if(player.weaponType === WEAPON_TYPES.NORMAL) {
+                    var angleStep = Math.PI / 16;
+                    var start = -(player.bulletLvl - 1) * angleStep / 2;
+                    
+                    for(var i = 0; i < player.bulletLvl; i++) {
+                        createBullet(
+                            player.x + player.w/2,
+                            player.y,
+                            start + i * angleStep,
+                            player.damage,
+                            true
+                        );
+                    }
+                }
+                
+                // 僚机发射导弹
+                for(var i = 0; i < wingmen.length; i++) {
+                    var w = wingmen[i];
+                    if(w.hp > 0) {
+                        createMissile(w.x + 12, w.y);
+                    }
+                }
+            }
+            
+            // 碰撞检测
+            function collides(a, b) {
+                return a.x < b.x + b.w && a.x + a.w > b.x &&
+                       a.y < b.y + b.h && a.y + a.h > b.y;
+            }
+            
+            // 更新游戏
+            function update() {
+                if(!game.running) return;
+                
+                game.time++;
+                
+                // 更新星空
+                for(var i = 0; i < stars.length; i++) {
+                    stars[i].y += stars[i].speed;
+                    if(stars[i].y > canvas.height) {
+                        stars[i].y = 0;
+                        stars[i].x = Math.random() * canvas.width;
+                    }
+                }
+                
+                if(player.invulnerable > 0) player.invulnerable--;
+                
+                // 激光武器周期管理
+                if(player.weaponType === WEAPON_TYPES.LASER) {
+                    player.laserCycleTimer++;
+                    if(player.laserCycleTimer >= 240) {  // 4秒周期
+                        player.laserCooldown = 60;  // 1秒冷却
+                        player.laserCycleTimer = 0;
+                        document.getElementById('laserStatus').style.display = 'block';
+                    }
+                    
+                    if(player.laserCooldown > 0) {
+                        player.laserCooldown--;
+                        document.getElementById('laserCooldown').textContent = Math.ceil(player.laserCooldown / 60);
+                        document.getElementById('weaponType').className = 'laser-cooldown';
+                        
+                        if(player.laserCooldown === 0) {
+                            document.getElementById('laserStatus').style.display = 'none';
+                            document.getElementById('weaponType').className = 'laser-weapon';
+                        }
+                    }
+                } else {
+                    player.laserCycleTimer = 0;
+                    player.laserCooldown = 0;
+                    document.getElementById('laserStatus').style.display = 'none';
+                }
+                
+                // 持续更新激光
+                updateLasers();
+                updateTrackingLasers();
+                
+                // 自动射击（普通弹）
+                if(player.weaponType === WEAPON_TYPES.NORMAL) {
+                    game.shootTimer++;
+                    var shootInterval = 8 / player.fireRate;  // 调整射击间隔，从5改为8，降低子弹密度
+                    if(game.shootTimer >= shootInterval) {
+                        playerShoot();
+                        game.shootTimer = 0;
+                    }
+                }
+                
+                // 生成敌机
+                if(!game.bossActive) {
+                    game.enemyTimer++;
+                    var maxEnemiesOnScreen = game.wave <= 25 ? 10 + game.wave : 35;
+                    
+                    if(game.enemyTimer >= Math.max(30, 60 - Math.min(game.wave * 2, 30))) {
+                        if(game.waveEnemies < game.maxWaveEnemies && enemies.length < maxEnemiesOnScreen) {
+                            var rand = Math.random();
+                            if(rand < 0.1) createEnemy('elite');
+                            else if(rand < 0.3 && game.wave > 2) createEnemy('shooter');
+                            else createEnemy('normal');
+                            game.waveEnemies++;
+                            game.enemyTimer = 0;
+                        }
+                    }
+                }
+                
+                // 波次进度
+                if(enemies.length === 0 && game.waveEnemies >= game.maxWaveEnemies && !game.bossActive) {
+                    game.wave++;
+                    game.waveEnemies = 0;
+                    game.maxWaveEnemies = game.wave <= 25 ? 10 + game.wave * 2 : 60;
+                    document.getElementById('wave').textContent = game.wave;
+                    
+                    if(game.wave % 5 === 0) {
+                        document.getElementById('bossWarning').style.display = 'block';
+                        setTimeout(function() {
+                            document.getElementById('bossWarning').style.display = 'none';
+                            createEnemy('boss');
+                            game.bossActive = true;
+                        }, 2000);
+                    }
+                }
+                
+                // 更新其他游戏对象
+                updateBullets();
+                updateMissiles();
+                updateEnemies();
+                updatePowerups();
+                updateWingmen();
+                updateParticles();
+            }
+            
+            function updateBullets() {
+                for(var i = bullets.length - 1; i >= 0; i--) {
+                    var b = bullets[i];
+                    b.x += b.vx;
+                    b.y += b.vy;
+                    
+                    // 简化拖尾效果，减少移动端闪烁
+                    if(b.isPlayer && b.trail.length < 2) {  // 减少拖尾长度从3到2
+                        b.trail.push({x: b.x, y: b.y, alpha: 0.4});  // 降低初始透明度
+                    }
+                    
+                    for(var j = b.trail.length - 1; j >= 0; j--) {
+                        b.trail[j].alpha *= 0.7;  // 更快的淡出速度
+                        if(b.trail[j].alpha <= 0.05) {  // 更早清除
+                            b.trail.splice(j, 1);
+                        }
+                    }
+                    
+                    if(b.y < -10 || b.y > canvas.height + 10 || b.x < -10 || b.x > canvas.width + 10) {
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                    
+                    // 碰撞检测
+                    if(!b.isPlayer) {
+                        if(collides(b, player) && player.invulnerable === 0) {
+                            player.hp--;
+                            player.invulnerable = 60;
+                            createExplosion(player.x + player.w/2, player.y + player.h/2);
+                            document.getElementById('hp').textContent = player.hp;
+                            bullets.splice(i, 1);
+                            
+                            if(player.hp <= 0) {
+                                gameOver();
+                            }
+                        }
+                        
+                        // 击中僚机
+                        for(var k = 0; k < wingmen.length; k++) {
+                            var w = wingmen[k];
+                            if(w.hp > 0 && collides(b, {x: w.x, y: w.y, w: 25, h: 30})) {
+                                w.hp--;
+                                createExplosion(w.x + 12, w.y + 15, '#2196f3', 5);
+                                bullets.splice(i, 1);
+                                
+                                if(w.hp <= 0) {
+                                    createExplosion(w.x + 12, w.y + 15, '#2196f3', 20);
+                                    player.wingmanCount--;
+                                    document.getElementById('wingman').textContent = player.wingmanCount;
+                                }
+                                break;
+                            }
+                        }
+                    } else {
+                        for(var j = enemies.length - 1; j >= 0; j--) {
+                            var e = enemies[j];
+                            if(collides(b, e)) {
+                                e.hp -= b.damage;
+                                bullets.splice(i, 1);
+                                createExplosion(b.x, b.y, '#ffff00', 5);
+                                
+                                if(e.hp <= 0) {
+                                    createExplosion(e.x + e.w/2, e.y + e.h/2, '#ff6b6b', 15);
+                                    game.score += e.score;
+                                    document.getElementById('score').textContent = game.score;
+                                    
+                                    if(e.type === 'boss') {
+                                        game.bossActive = false;
+                                        createPowerup(e.x + e.w/2 - 15, e.y, 'maxhealth');
+                                    } else if(Math.random() < e.dropRate) {
+                                        createPowerup(e.x + e.w/2 - 15, e.y);
+                                    }
+                                    
+                                    enemies.splice(j, 1);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            function updateMissiles() {
+                for(var i = missiles.length - 1; i >= 0; i--) {
+                    var m = missiles[i];
+                    m.life--;
+                    
+                    if(m.trail.length < 5) {
+                        m.trail.push({x: m.x, y: m.y, alpha: 0.5});
+                    }
+                    
+                    for(var j = m.trail.length - 1; j >= 0; j--) {
+                        m.trail[j].alpha *= 0.9;
+                        if(m.trail[j].alpha <= 0.1) {
+                            m.trail.splice(j, 1);
+                        }
+                    }
+                    
+                    if(!enemies.includes(m.target)) {
+                        m.target = findNearestEnemy(m.x, m.y);
+                    }
+                    
+                    if(m.target) {
+                        var tx = m.target.x + m.target.w/2;
+                        var ty = m.target.y + m.target.h/2;
+                        var angle = Math.atan2(tx - m.x, ty - m.y);
+                        
+                        var turnSpeed = 0.15;
+                        m.vx = m.vx * (1 - turnSpeed) + Math.sin(angle) * 8 * turnSpeed;
+                        m.vy = m.vy * (1 - turnSpeed) + Math.cos(angle) * 8 * turnSpeed;
+                        
+                        var speed = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+                        if(speed > 10) {
+                            m.vx = m.vx / speed * 10;
+                            m.vy = m.vy / speed * 10;
+                        }
+                    }
+                    
+                    m.x += m.vx;
+                    m.y += m.vy;
+                    
+                    for(var j = enemies.length - 1; j >= 0; j--) {
+                        var e = enemies[j];
+                        if(collides({x: m.x-3, y: m.y-3, w: 6, h: 6}, e)) {
+                            e.hp -= m.damage;
+                            createExplosion(m.x, m.y, '#2196f3', 8);
+                            m.life = 0;
+                            
+                            if(e.hp <= 0) {
+                                createExplosion(e.x + e.w/2, e.y + e.h/2, '#ff6b6b', 15);
+                                game.score += e.score;
+                                document.getElementById('score').textContent = game.score;
+                                
+                                if(e.type === 'boss') {
+                                    game.bossActive = false;
+                                    createPowerup(e.x + e.w/2 - 15, e.y, 'maxhealth');
+                                } else if(Math.random() < e.dropRate) {
+                                    createPowerup(e.x + e.w/2 - 15, e.y);
+                                }
+                                
+                                enemies.splice(j, 1);
+                            }
+                            break;
+                        }
+                    }
+                    
+                    if(m.life <= 0 || m.x < -10 || m.x > canvas.width + 10 || 
+                       m.y < -10 || m.y > canvas.height + 10) {
+                        missiles.splice(i, 1);
+                    }
+                }
+            }
+            
+            function updateEnemies() {
+                for(var i = enemies.length - 1; i >= 0; i--) {
+                    var e = enemies[i];
+                    
+                    if(e.type === 'boss') {
+                        e.y = Math.min(e.y + e.speed, 100);
+                        e.x += Math.sin(game.time * 0.02) * 2;
+                    } else {
+                        e.y += e.speed;
+                    }
+                    
+                    if(e.canShoot) {
+                        e.shootTimer++;
+                        if(e.shootTimer >= e.shootInterval) {
+                            if(e.type === 'boss') {
+                                var bulletCount = Math.min(5, 3 + Math.floor(game.wave/10));
+                                for(var j = -Math.floor(bulletCount/2); j <= Math.floor(bulletCount/2); j++) {
+                                    createBullet(e.x + e.w/2, e.y + e.h, j * Math.PI/8, 1, false);
+                                }
+                            } else {
+                                createBullet(e.x + e.w/2, e.y + e.h, 0, 1, false);
+                            }
+                            e.shootTimer = 0;
+                        }
+                    }
+                    
+                    if(collides(e, player) && player.invulnerable === 0) {
+                        player.hp--;
+                        player.invulnerable = 60;
+                        createExplosion(player.x + player.w/2, player.y + player.h/2);
+                        document.getElementById('hp').textContent = player.hp;
+                        
+                        if(player.hp <= 0) {
+                            gameOver();
+                        }
+                    }
+                    
+                    if(e.y > canvas.height + e.h) {
+                        enemies.splice(i, 1);
+                    }
+                }
+            }
+            
+            function updatePowerups() {
+                for(var i = powerups.length - 1; i >= 0; i--) {
+                    var p = powerups[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    if(p.x <= 0 || p.x >= canvas.width - p.w) {
+                        p.vx = -p.vx * 0.9;
+                        p.x = Math.max(0, Math.min(canvas.width - p.w, p.x));
+                    }
+                    
+                    p.vy += 0.05;
+                    
+                    if(collides(p, player)) {
+                        switch(p.type) {
+                            case 'bullet':
+                                if(player.bulletLvl < 7) {
+                                    player.bulletLvl++;
+                                    document.getElementById('bulletLvl').textContent = player.bulletLvl;
+                                }
+                                break;
+                            case 'firerate':
+                                if(player.fireRate < 5) {
+                                    player.fireRate += 0.2;
+                                    document.getElementById('fireRate').textContent = Math.floor(player.fireRate * 100);
+                                }
+                                break;
+                            case 'wingman':
+                                if(player.wingmanCount < 6) {
+                                    player.wingmanCount++;
+                                    var offset = (player.wingmanCount % 2 === 1) 
+                                        ? -Math.ceil(player.wingmanCount/2) * 50 
+                                        : Math.floor(player.wingmanCount/2) * 50;
+                                    wingmen.push({
+                                        x: player.x,
+                                        y: player.y,
+                                        offset: offset,
+                                        hp: 3,
+                                        maxHp: 3
+                                    });
+                                    document.getElementById('wingman').textContent = player.wingmanCount;
+                                }
+                                break;
+                            case 'health':
+                                if(player.hp < player.maxHp) {
+                                    player.hp++;
+                                    document.getElementById('hp').textContent = player.hp;
+                                }
+                                break;
+                            case 'maxhealth':
+                                player.maxHp++;
+                                player.hp = player.maxHp;
+                                document.getElementById('hp').textContent = player.hp;
+                                document.getElementById('maxHp').textContent = player.maxHp;
+                                break;
+                            case 'weapon':
+                                var weapons = [WEAPON_TYPES.NORMAL, WEAPON_TYPES.LASER, WEAPON_TYPES.TRACKING];
+                                var currentIndex = weapons.indexOf(player.weaponType);
+                                player.weaponType = weapons[(currentIndex + 1) % weapons.length];
+                                var weaponNames = {normal: '普通弹', laser: '激光', tracking: '跟踪激光'};
+                                var weaponClasses = {normal: 'normal-weapon', laser: 'laser-weapon', tracking: 'tracking-weapon'};
+                                document.getElementById('weaponType').textContent = weaponNames[player.weaponType];
+                                document.getElementById('weaponType').className = weaponClasses[player.weaponType];
+                                
+                                // 切换武器时重置激光状态
+                                if(player.weaponType !== WEAPON_TYPES.LASER) {
+                                    lasers = [];
+                                    player.laserCooldown = 0;
+                                    player.laserCycleTimer = 0;
+                                }
+                                if(player.weaponType !== WEAPON_TYPES.TRACKING) {
+                                    trackingLasers = [];
+                                }
+                                break;
+                        }
+                        createExplosion(p.x + 15, p.y + 15, p.color, 20);
+                        powerups.splice(i, 1);
+                        continue;
+                    }
+                    
+                    if(p.y > canvas.height + 30) {
+                        powerups.splice(i, 1);
+                    }
+                }
+            }
+            
+            function updateWingmen() {
+                for(var i = wingmen.length - 1; i >= 0; i--) {
+                    var w = wingmen[i];
+                    if(w.hp <= 0) {
+                        wingmen.splice(i, 1);
+                        continue;
+                    }
+                    
+                    var targetX = player.x + w.offset;
+                    var targetY = player.y + 20;
+                    w.x += (targetX - w.x) * 0.1;
+                    w.y += (targetY - w.y) * 0.1;
+                }
+                
+                // 僚机发射导弹
+                if(game.time % 30 === 0) {  // 每0.5秒发射一次
+                    for(var i = 0; i < wingmen.length; i++) {
+                        var w = wingmen[i];
+                        if(w.hp > 0) {
+                            createMissile(w.x + 12, w.y);
+                        }
+                    }
+                }
+            }
+            
+            function updateParticles() {
+                for(var i = particles.length - 1; i >= 0; i--) {
+                    var p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+                    p.life -= 0.03;
+                    
+                    if(p.life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+            }
+            
+            // 绘制
+            function draw() {
+                // 清除画布
+                ctx.fillStyle = '#0a0e27';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 渐变背景
+                var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#0a0e27');
+                gradient.addColorStop(1, '#1a1f3a');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 绘制星空
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for(var i = 0; i < stars.length; i++) {
+                    var s = stars[i];
+                    ctx.fillRect(s.x, s.y, s.size, s.size);
+                }
+                
+                // 绘制粒子
+                for(var i = 0; i < particles.length; i++) {
+                    var p = particles[i];
+                    ctx.globalAlpha = p.life * 0.8;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+                }
+                ctx.globalAlpha = 1;
+                
+                // 绘制持续激光（带呼吸效果）
+                ctx.save();
+                for(var i = 0; i < lasers.length; i++) {
+                    var l = lasers[i];
+                    
+                    // 激光主体
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = l.width;
+                    ctx.globalAlpha = 0.8 + l.breathe * 0.1;
+                    ctx.shadowBlur = 10 + l.breathe * 5;
+                    ctx.shadowColor = '#00ffff';
+                    ctx.beginPath();
+                    ctx.moveTo(l.x1, l.y1);
+                    ctx.lineTo(l.x2, l.y2);
+                    ctx.stroke();
+                    
+                    // 激光核心
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = l.width * 0.3;
+                    ctx.globalAlpha = 0.9;
+                    ctx.shadowBlur = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(l.x1, l.y1);
+                    ctx.lineTo(l.x2, l.y2);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                ctx.restore();
+                
+                // 绘制持续跟踪激光
+                ctx.save();
+                for(var i = 0; i < trackingLasers.length; i++) {
+                    var tl = trackingLasers[i];
+                    if(tl.points.length > 1) {
+                        // 外层光晕 - 修改：宽度随攻速增加
+                        ctx.strokeStyle = '#ff00ff';
+                        ctx.lineWidth = 6 * tl.widthMultiplier;
+                        ctx.globalAlpha = 0.6;
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = '#ff00ff';
+                        ctx.beginPath();
+                        ctx.moveTo(tl.points[0].x, tl.points[0].y);
+                        for(var j = 1; j < tl.points.length; j++) {
+                            ctx.lineTo(tl.points[j].x, tl.points[j].y);
+                        }
+                        ctx.stroke();
+                        
+                        // 核心线 - 修改：宽度随攻速增加
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2 * tl.widthMultiplier;
+                        ctx.globalAlpha = 0.8;
+                        ctx.shadowBlur = 5;
+                        ctx.beginPath();
+                        ctx.moveTo(tl.points[0].x, tl.points[0].y);
+                        for(var j = 1; j < tl.points.length; j++) {
+                            ctx.lineTo(tl.points[j].x, tl.points[j].y);
+                        }
+                        ctx.stroke();
+                    }
+                }
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                ctx.restore();
+                
+                // 绘制导弹
+                for(var i = 0; i < missiles.length; i++) {
+                    var m = missiles[i];
+                    
+                    for(var j = 0; j < m.trail.length; j++) {
+                        var t = m.trail[j];
+                        ctx.globalAlpha = t.alpha * 0.6;
+                        ctx.fillStyle = '#2196f3';
+                        ctx.fillRect(t.x - 2, t.y - 2, 4, 4);
+                    }
+                    ctx.globalAlpha = 1;
+                    
+                    ctx.fillStyle = '#2196f3';
+                    var angle = Math.atan2(m.vx, m.vy);
+                    ctx.save();
+                    ctx.translate(m.x, m.y);
+                    ctx.rotate(-angle);
+                    ctx.fillRect(-3, -6, 6, 12);
+                    ctx.restore();
+                }
+                
+                // 绘制子弹
+                for(var i = 0; i < bullets.length; i++) {
+                    var b = bullets[i];
+                    
+                    // 简化拖尾渲染，提高移动端性能
+                    if(b.trail.length > 0 && b.isPlayer) {
+                        for(var j = 0; j < b.trail.length; j++) {
+                            var t = b.trail[j];
+                            ctx.globalAlpha = t.alpha * 0.3;  // 降低拖尾不透明度
+                            ctx.fillStyle = '#ffeb3b';
+                            ctx.fillRect(t.x - b.w/3, t.y - b.h/3, b.w/1.5, b.h/1.5);
+                        }
+                    }
+                    ctx.globalAlpha = 1;
+                    
+                    // 主弹体更清晰
+                    ctx.fillStyle = b.isPlayer ? '#ffeb3b' : '#ff00ff';
+                    ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
+                    
+                    // 添加简单的光晕效果让子弹更明显（仅玩家子弹）
+                    if(b.isPlayer) {
+                        ctx.globalAlpha = 0.5;
+                        ctx.fillStyle = '#ffff88';
+                        ctx.fillRect(b.x - b.w/3, b.y - b.h/3, b.w/1.5, b.h/1.5);
+                        ctx.globalAlpha = 1;
+                    }
+                }
+                
+                // 绘制敌机
+                for(var i = 0; i < enemies.length; i++) {
+                    var e = enemies[i];
+                    ctx.fillStyle = e.color;
+                    ctx.fillRect(e.x, e.y, e.w, e.h);
+                    
+                    if(e.hp < e.maxHp) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        ctx.fillRect(e.x, e.y - 8, e.w, 4);
+                        var hpPercent = e.hp / e.maxHp;
+                        ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : hpPercent > 0.25 ? '#ffff00' : '#ff0000';
+                        ctx.fillRect(e.x, e.y - 8, e.w * hpPercent, 4);
+                    }
+                }
+                
+                // 绘制道具
+                for(var i = 0; i < powerups.length; i++) {
+                    var p = powerups[i];
+                    ctx.save();
+                    ctx.translate(p.x + 15, p.y + 15);
+                    ctx.rotate(game.time * 0.05);
+                    
+                    ctx.strokeStyle = p.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = p.color;
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(p.symbol, 0, 0);
+                    ctx.restore();
+                }
+                
+                // 绘制僚机
+                for(var i = 0; i < wingmen.length; i++) {
+                    var w = wingmen[i];
+                    if(w.hp > 0) {
+                        ctx.fillStyle = '#2196f3';
+                        ctx.fillRect(w.x, w.y, 25, 30);
+                        
+                        if(w.hp < w.maxHp) {
+                            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                            ctx.fillRect(w.x, w.y - 5, 25, 3);
+                            ctx.fillStyle = '#00ff00';
+                            ctx.fillRect(w.x, w.y - 5, 25 * (w.hp/w.maxHp), 3);
+                        }
+                    }
+                }
+                
+                // 绘制玩家
+                if(game.running && (player.invulnerable === 0 || Math.floor(player.invulnerable/5) % 2 === 0)) {
+                    ctx.fillStyle = '#4a90e2';
+                    ctx.fillRect(player.x, player.y, player.w, player.h);
+                    
+                    if(player.weaponType !== WEAPON_TYPES.NORMAL) {
+                        var color = player.weaponType === WEAPON_TYPES.LASER ? '#00ffff' : '#ff00ff';
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(player.x - 2, player.y - 2, player.w + 4, player.h + 4);
+                    }
+                }
+            }
+            
+            // 游戏循环
+            var animationId;
+            var lastTime = 0;
+            var accumulator = 0;
+            var fixedTimeStep = 1000 / 60; // 60 FPS 固定时间步长
+            
+            function gameLoop(currentTime) {
+                if (!lastTime) lastTime = currentTime;
+                var deltaTime = Math.min(currentTime - lastTime, 100); // 限制最大增量防止跳跃
+                lastTime = currentTime;
+                
+                accumulator += deltaTime;
+                
+                // 固定时间步长更新
+                while (accumulator >= fixedTimeStep) {
+                    update();
+                    accumulator -= fixedTimeStep;
+                }
+                
+                // 绘制可以每帧都执行
+                draw();
+                animationId = requestAnimationFrame(gameLoop);
+            }
+            
+            // 游戏结束
+            function gameOver() {
+                game.running = false;
+                document.getElementById('finalScore').textContent = game.score;
+                document.getElementById('finalWave').textContent = game.wave;
+                document.getElementById('gameOver').style.display = 'block';
+            }
+            
+            // 重置游戏
+            function reset() {
+                game = {running: true, score: 0, wave: 1, time: 0, enemyTimer: 0, shootTimer: 0, waveEnemies: 0, maxWaveEnemies: 10, bossActive: false, frameCount: 0, fps: 60};
+                player = {
+                    x: canvas.width/2 - 20,
+                    y: canvas.height - 100,
+                    w: 40, h: 50,
+                    hp: 3, maxHp: 3,
+                    bulletLvl: 1,
+                    fireRate: 0.5,  // 修改：初始攻速改为0.5
+                    wingmanCount: 0,
+                    invulnerable: 0,
+                    damage: 1,
+                    weaponType: WEAPON_TYPES.NORMAL,
+                    laserActive: false,
+                    laserTimer: 0,
+                    laserCooldown: 0,
+                    laserCycleTimer: 0
+                };
+                bullets = [];
+                enemies = [];
+                powerups = [];
+                particles = [];
+                wingmen = [];
+                lasers = [];
+                trackingLasers = [];
+                missiles = [];
+                
+                stars = [];
+                for(var i = 0; i < 50; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 2,
+                        speed: Math.random() * 2 + 0.5
+                    });
+                }
+                
+                document.getElementById('score').textContent = 0;
+                document.getElementById('hp').textContent = 3;
+                document.getElementById('maxHp').textContent = 3;
+                document.getElementById('bulletLvl').textContent = 1;
+                document.getElementById('fireRate').textContent = 50;  // 修改：显示50%
+                document.getElementById('wingman').textContent = 0;
+                document.getElementById('wave').textContent = 1;
+                document.getElementById('weaponType').textContent = '普通弹';
+                document.getElementById('weaponType').className = 'normal-weapon';
+                document.getElementById('gameOver').style.display = 'none';
+                document.getElementById('startScreen').style.display = 'none';
+            }
+            
+            // 控制系统
+            var touchX = 0, touchY = 0;
+            var lastTouchTime = 0;
+            var touchThrottle = 16; // 限制触摸更新频率为约60FPS
+            
+            canvas.addEventListener('touchstart', function(e) {
+                if(!game.running) return;
+                var touch = e.touches[0];
+                touchX = touch.clientX - player.x;
+                touchY = touch.clientY - player.y;
+                lastTouchTime = Date.now();
+            }, {passive: true});
+            
+            canvas.addEventListener('touchmove', function(e) {
+                if(!game.running) return;
+                e.preventDefault();
+                
+                // 节流触摸移动事件
+                var now = Date.now();
+                if (now - lastTouchTime < touchThrottle) return;
+                lastTouchTime = now;
+                
+                var touch = e.touches[0];
+                player.x = Math.max(0, Math.min(canvas.width - player.w, touch.clientX - touchX));
+                player.y = Math.max(0, Math.min(canvas.height - player.h, touch.clientY - touchY));
+            }, {passive: false});
+            
+            canvas.addEventListener('mousemove', function(e) {
+                if(!game.running) return;
+                player.x = Math.max(0, Math.min(canvas.width - player.w, e.clientX - player.w/2));
+                player.y = Math.max(0, Math.min(canvas.height - player.h, e.clientY - player.h/2));
+            });
+            
+            document.getElementById('startBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                reset();
+            });
+            
+            document.getElementById('restartBtn').addEventListener('click', function(e) {
+                e.preventDefault();
+                reset();
+            });
+            
+            window.addEventListener('resize', function() {
+                resizeCanvas();
+                if(player.x > canvas.width - player.w) {
+                    player.x = canvas.width - player.w;
+                }
+                if(player.y > canvas.height - player.h) {
+                    player.y = canvas.height - player.h;
+                }
+            });
+            
+            document.body.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, {passive: false});
+            
+            // 启动
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
