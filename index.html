@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -206,7 +206,7 @@
                 alpha: false,
                 desynchronized: true,
                 willReadFrequently: false,
-                imageSmoothingEnabled: false  // 添加：禁用图像平滑以提高性能
+                imageSmoothingEnabled: false
             });
             
             // 设置Canvas尺寸
@@ -218,7 +218,7 @@
             
             // 星空背景
             var stars = [];
-            var starCount = isMobile ? 25 : 50;  // 移动端减少星星数量
+            var starCount = isMobile ? 25 : 50;
             for(var i = 0; i < starCount; i++) {
                 stars.push({
                     x: Math.random() * canvas.width,
@@ -249,8 +249,8 @@
                 waveEnemies: 0,
                 maxWaveEnemies: 10,
                 bossActive: false,
-                frameCount: 0,  // 添加：帧计数器用于调试
-                fps: 60         // 添加：当前FPS
+                frameCount: 0,
+                fps: 60
             };
             
             // 玩家
@@ -262,7 +262,7 @@
                 hp: 3,
                 maxHp: 3,
                 bulletLvl: 1,
-                fireRate: 0.5,  // 修改：初始攻速改为0.5（原来的50%）
+                fireRate: 0.5,
                 wingmanCount: 0,
                 invulnerable: 0,
                 damage: 1,
@@ -289,7 +289,7 @@
                 normal: {w:35, h:40, speed:2, hp:1, color:'#8844ff', score:100},
                 shooter: {w:40, h:45, speed:1.5, hp:2, color:'#ff8844', score:200, canShoot:true, shootInterval:80},
                 elite: {w:55, h:60, speed:1.2, hp:5, color:'#ff4444', score:500, canShoot:true, dropRate:0.8, shootInterval:120},
-                boss: {w:100, h:120, speed:0.5, hp:40, color:'#ff0000', score:2000, canShoot:true, dropRate:1, shootInterval:40}  // 修改：Boss血量翻倍从20改为40
+                boss: {w:100, h:120, speed:0.5, hp:40, color:'#ff0000', score:2000, canShoot:true, dropRate:1, shootInterval:40}
             };
             
             // 创建子弹（普通弹）
@@ -298,33 +298,28 @@
                 var bullet = {
                     x: x,
                     y: y,
-                    vx: Math.sin(angle) * (isPlayer ? 12 : 4),  // 降低玩家子弹速度从18到12
+                    vx: Math.sin(angle) * (isPlayer ? 12 : 4),
                     vy: (isPlayer ? -1 : 1) * Math.cos(angle) * (isPlayer ? 12 : 4),
-                    w: 8,  // 增大子弹尺寸让其更明显
+                    w: 8,
                     h: 14,
                     damage: dmg * (isPlayer ? 1.5 : 1) * DAMAGE_MULTIPLIER,
                     isPlayer: isPlayer,
-                    trail: []  // 移动端会简化拖尾
+                    trail: []
                 };
                 bullets.push(bullet);
             }
             
-            // 创建持续激光（不再是闪烁的）
+            // 创建持续激光
             function updateLasers() {
-                // 清除旧激光
                 lasers = [];
                 
-                // 如果激光武器激活且不在冷却
                 if(player.weaponType === WEAPON_TYPES.LASER && player.laserCooldown === 0) {
                     var angleStep = Math.PI / 8;
                     var start = -(player.bulletLvl - 1) * angleStep / 2;
                     var damageMultiplier = (0.4 + (player.fireRate - 1) * 0.2) * DAMAGE_MULTIPLIER;
                     
-                    // 呼吸效果
                     var breathe = Math.sin(game.time * 0.1) * 0.3 + 1;
-                    
-                    // 修改：激光宽度随攻速增加
-                    var widthMultiplier = 1 + (player.fireRate - 0.5) * 0.3;  // 攻速从0.5开始，每点攻速增加30%宽度
+                    var widthMultiplier = 1 + (player.fireRate - 0.5) * 0.3;
                     
                     for(var i = 0; i < player.bulletLvl; i++) {
                         var angle = start + i * angleStep;
@@ -338,12 +333,11 @@
                             y2: endY,
                             angle: angle,
                             damage: player.damage * damageMultiplier,
-                            width: (8 + player.bulletLvl) * breathe * widthMultiplier,  // 加入攻速影响
+                            width: (8 + player.bulletLvl) * breathe * widthMultiplier,
                             breathe: breathe
                         });
                     }
                     
-                    // 僚机激光
                     for(var j = 0; j < wingmen.length; j++) {
                         var w = wingmen[j];
                         if(w.hp > 0) {
@@ -353,13 +347,12 @@
                                 x2: w.x + 12,
                                 y2: 0,
                                 damage: player.damage * damageMultiplier * 0.5,
-                                width: 6 * breathe * widthMultiplier,  // 加入攻速影响
+                                width: 6 * breathe * widthMultiplier,
                                 breathe: breathe
                             });
                         }
                     }
                     
-                    // 激光伤害
                     for(var i = 0; i < lasers.length; i++) {
                         var l = lasers[i];
                         for(var j = enemies.length - 1; j >= 0; j--) {
@@ -374,7 +367,7 @@
                             
                             if(dist < l.width/2 + e.w/2) {
                                 e.hp -= l.damage;
-                                if(game.time % 3 === 0) {  // 减少粒子频率
+                                if(game.time % 3 === 0) {
                                     createExplosion(cx, cy, '#00ffff', 2);
                                 }
                                 
@@ -400,9 +393,7 @@
             
             // 更新持续跟踪激光
             function updateTrackingLasers() {
-                // 如果是跟踪激光武器且不在冷却
                 if(player.weaponType === WEAPON_TYPES.TRACKING) {
-                    // 保持现有跟踪激光或创建新的
                     if(trackingLasers.length === 0 || !enemies.includes(trackingLasers[0].target)) {
                         trackingLasers = [];
                         var target = findNearestEnemy(player.x + player.w/2, player.y);
@@ -415,20 +406,16 @@
                                 target: target,
                                 damage: player.damage * damageMultiplier,
                                 points: [],
-                                widthMultiplier: 1 + (player.fireRate - 0.5) * 0.4  // 修改：加入宽度倍率
+                                widthMultiplier: 1 + (player.fireRate - 0.5) * 0.4
                             });
                         }
                     }
                     
-                    // 更新现有跟踪激光
                     for(var i = trackingLasers.length - 1; i >= 0; i--) {
                         var tl = trackingLasers[i];
                         
-                        // 更新起点位置
                         tl.x = player.x + player.w/2;
                         tl.y = player.y;
-                        
-                        // 更新宽度倍率
                         tl.widthMultiplier = 1 + (player.fireRate - 0.5) * 0.4;
                         
                         if(!enemies.includes(tl.target)) {
@@ -450,9 +437,8 @@
                                 tl.points.push({x: x, y: y});
                             }
                             
-                            // 持续伤害
                             tl.target.hp -= tl.damage;
-                            if(game.time % 5 === 0) {  // 减少粒子频率
+                            if(game.time % 5 === 0) {
                                 createExplosion(tx, ty, '#ff00ff', 2);
                             }
                             
@@ -491,7 +477,7 @@
                     vx: 0,
                     vy: -5,
                     target: target,
-                    damage: player.damage * 0.5 * DAMAGE_MULTIPLIER,  // 调整伤害
+                    damage: player.damage * 0.5 * DAMAGE_MULTIPLIER,
                     life: 180,
                     trail: []
                 });
@@ -571,7 +557,6 @@
                 if(!color) color = '#ff6b6b';
                 if(!count) count = 10;
                 
-                // 移动端减少粒子数量
                 if(isMobile) {
                     count = Math.floor(count * 0.6);
                 }
@@ -610,7 +595,6 @@
                     }
                 }
                 
-                // 僚机发射导弹
                 for(var i = 0; i < wingmen.length; i++) {
                     var w = wingmen[i];
                     if(w.hp > 0) {
@@ -631,7 +615,6 @@
                 
                 game.time++;
                 
-                // 更新星空
                 for(var i = 0; i < stars.length; i++) {
                     stars[i].y += stars[i].speed;
                     if(stars[i].y > canvas.height) {
@@ -642,11 +625,10 @@
                 
                 if(player.invulnerable > 0) player.invulnerable--;
                 
-                // 激光武器周期管理
                 if(player.weaponType === WEAPON_TYPES.LASER) {
                     player.laserCycleTimer++;
-                    if(player.laserCycleTimer >= 240) {  // 4秒周期
-                        player.laserCooldown = 60;  // 1秒冷却
+                    if(player.laserCycleTimer >= 240) {
+                        player.laserCooldown = 60;
                         player.laserCycleTimer = 0;
                         document.getElementById('laserStatus').style.display = 'block';
                     }
@@ -667,21 +649,18 @@
                     document.getElementById('laserStatus').style.display = 'none';
                 }
                 
-                // 持续更新激光
                 updateLasers();
                 updateTrackingLasers();
                 
-                // 自动射击（普通弹）
                 if(player.weaponType === WEAPON_TYPES.NORMAL) {
                     game.shootTimer++;
-                    var shootInterval = 8 / player.fireRate;  // 调整射击间隔，从5改为8，降低子弹密度
+                    var shootInterval = 8 / player.fireRate;
                     if(game.shootTimer >= shootInterval) {
                         playerShoot();
                         game.shootTimer = 0;
                     }
                 }
                 
-                // 生成敌机
                 if(!game.bossActive) {
                     game.enemyTimer++;
                     var maxEnemiesOnScreen = game.wave <= 25 ? 10 + game.wave : 35;
@@ -698,7 +677,6 @@
                     }
                 }
                 
-                // 波次进度
                 if(enemies.length === 0 && game.waveEnemies >= game.maxWaveEnemies && !game.bossActive) {
                     game.wave++;
                     game.waveEnemies = 0;
@@ -715,7 +693,6 @@
                     }
                 }
                 
-                // 更新其他游戏对象
                 updateBullets();
                 updateMissiles();
                 updateEnemies();
@@ -730,14 +707,13 @@
                     b.x += b.vx;
                     b.y += b.vy;
                     
-                    // 简化拖尾效果，减少移动端闪烁
-                    if(b.isPlayer && b.trail.length < 2) {  // 减少拖尾长度从3到2
-                        b.trail.push({x: b.x, y: b.y, alpha: 0.4});  // 降低初始透明度
+                    if(b.isPlayer && b.trail.length < 2) {
+                        b.trail.push({x: b.x, y: b.y, alpha: 0.4});
                     }
                     
                     for(var j = b.trail.length - 1; j >= 0; j--) {
-                        b.trail[j].alpha *= 0.7;  // 更快的淡出速度
-                        if(b.trail[j].alpha <= 0.05) {  // 更早清除
+                        b.trail[j].alpha *= 0.7;
+                        if(b.trail[j].alpha <= 0.05) {
                             b.trail.splice(j, 1);
                         }
                     }
@@ -747,7 +723,6 @@
                         continue;
                     }
                     
-                    // 碰撞检测
                     if(!b.isPlayer) {
                         if(collides(b, player) && player.invulnerable === 0) {
                             player.hp--;
@@ -761,7 +736,6 @@
                             }
                         }
                         
-                        // 击中僚机
                         for(var k = 0; k < wingmen.length; k++) {
                             var w = wingmen[k];
                             if(w.hp > 0 && collides(b, {x: w.x, y: w.y, w: 25, h: 30})) {
@@ -984,7 +958,6 @@
                                 document.getElementById('weaponType').textContent = weaponNames[player.weaponType];
                                 document.getElementById('weaponType').className = weaponClasses[player.weaponType];
                                 
-                                // 切换武器时重置激光状态
                                 if(player.weaponType !== WEAPON_TYPES.LASER) {
                                     lasers = [];
                                     player.laserCooldown = 0;
@@ -1020,8 +993,7 @@
                     w.y += (targetY - w.y) * 0.1;
                 }
                 
-                // 僚机发射导弹
-                if(game.time % 30 === 0) {  // 每0.5秒发射一次
+                if(game.time % 30 === 0) {
                     for(var i = 0; i < wingmen.length; i++) {
                         var w = wingmen[i];
                         if(w.hp > 0) {
@@ -1048,25 +1020,21 @@
             
             // 绘制
             function draw() {
-                // 清除画布
                 ctx.fillStyle = '#0a0e27';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // 渐变背景
                 var gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 gradient.addColorStop(0, '#0a0e27');
                 gradient.addColorStop(1, '#1a1f3a');
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // 绘制星空
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 for(var i = 0; i < stars.length; i++) {
                     var s = stars[i];
                     ctx.fillRect(s.x, s.y, s.size, s.size);
                 }
                 
-                // 绘制粒子
                 for(var i = 0; i < particles.length; i++) {
                     var p = particles[i];
                     ctx.globalAlpha = p.life * 0.8;
@@ -1075,12 +1043,10 @@
                 }
                 ctx.globalAlpha = 1;
                 
-                // 绘制持续激光（带呼吸效果）
                 ctx.save();
                 for(var i = 0; i < lasers.length; i++) {
                     var l = lasers[i];
                     
-                    // 激光主体
                     ctx.strokeStyle = '#00ffff';
                     ctx.lineWidth = l.width;
                     ctx.globalAlpha = 0.8 + l.breathe * 0.1;
@@ -1091,7 +1057,6 @@
                     ctx.lineTo(l.x2, l.y2);
                     ctx.stroke();
                     
-                    // 激光核心
                     ctx.strokeStyle = '#ffffff';
                     ctx.lineWidth = l.width * 0.3;
                     ctx.globalAlpha = 0.9;
@@ -1105,12 +1070,10 @@
                 ctx.shadowBlur = 0;
                 ctx.restore();
                 
-                // 绘制持续跟踪激光
                 ctx.save();
                 for(var i = 0; i < trackingLasers.length; i++) {
                     var tl = trackingLasers[i];
                     if(tl.points.length > 1) {
-                        // 外层光晕 - 修改：宽度随攻速增加
                         ctx.strokeStyle = '#ff00ff';
                         ctx.lineWidth = 6 * tl.widthMultiplier;
                         ctx.globalAlpha = 0.6;
@@ -1123,7 +1086,6 @@
                         }
                         ctx.stroke();
                         
-                        // 核心线 - 修改：宽度随攻速增加
                         ctx.strokeStyle = '#ffffff';
                         ctx.lineWidth = 2 * tl.widthMultiplier;
                         ctx.globalAlpha = 0.8;
@@ -1140,7 +1102,6 @@
                 ctx.shadowBlur = 0;
                 ctx.restore();
                 
-                // 绘制导弹
                 for(var i = 0; i < missiles.length; i++) {
                     var m = missiles[i];
                     
@@ -1161,26 +1122,22 @@
                     ctx.restore();
                 }
                 
-                // 绘制子弹
                 for(var i = 0; i < bullets.length; i++) {
                     var b = bullets[i];
                     
-                    // 简化拖尾渲染，提高移动端性能
                     if(b.trail.length > 0 && b.isPlayer) {
                         for(var j = 0; j < b.trail.length; j++) {
                             var t = b.trail[j];
-                            ctx.globalAlpha = t.alpha * 0.3;  // 降低拖尾不透明度
+                            ctx.globalAlpha = t.alpha * 0.3;
                             ctx.fillStyle = '#ffeb3b';
                             ctx.fillRect(t.x - b.w/3, t.y - b.h/3, b.w/1.5, b.h/1.5);
                         }
                     }
                     ctx.globalAlpha = 1;
                     
-                    // 主弹体更清晰
                     ctx.fillStyle = b.isPlayer ? '#ffeb3b' : '#ff00ff';
                     ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
                     
-                    // 添加简单的光晕效果让子弹更明显（仅玩家子弹）
                     if(b.isPlayer) {
                         ctx.globalAlpha = 0.5;
                         ctx.fillStyle = '#ffff88';
@@ -1189,7 +1146,6 @@
                     }
                 }
                 
-                // 绘制敌机
                 for(var i = 0; i < enemies.length; i++) {
                     var e = enemies[i];
                     ctx.fillStyle = e.color;
@@ -1204,7 +1160,6 @@
                     }
                 }
                 
-                // 绘制道具
                 for(var i = 0; i < powerups.length; i++) {
                     var p = powerups[i];
                     ctx.save();
@@ -1225,7 +1180,6 @@
                     ctx.restore();
                 }
                 
-                // 绘制僚机
                 for(var i = 0; i < wingmen.length; i++) {
                     var w = wingmen[i];
                     if(w.hp > 0) {
@@ -1241,7 +1195,6 @@
                     }
                 }
                 
-                // 绘制玩家
                 if(game.running && (player.invulnerable === 0 || Math.floor(player.invulnerable/5) % 2 === 0)) {
                     ctx.fillStyle = '#4a90e2';
                     ctx.fillRect(player.x, player.y, player.w, player.h);
@@ -1259,22 +1212,20 @@
             var animationId;
             var lastTime = 0;
             var accumulator = 0;
-            var fixedTimeStep = 1000 / 60; // 60 FPS 固定时间步长
+            var fixedTimeStep = 1000 / 60;
             
             function gameLoop(currentTime) {
                 if (!lastTime) lastTime = currentTime;
-                var deltaTime = Math.min(currentTime - lastTime, 100); // 限制最大增量防止跳跃
+                var deltaTime = Math.min(currentTime - lastTime, 100);
                 lastTime = currentTime;
                 
                 accumulator += deltaTime;
                 
-                // 固定时间步长更新
                 while (accumulator >= fixedTimeStep) {
                     update();
                     accumulator -= fixedTimeStep;
                 }
                 
-                // 绘制可以每帧都执行
                 draw();
                 animationId = requestAnimationFrame(gameLoop);
             }
@@ -1296,7 +1247,7 @@
                     w: 40, h: 50,
                     hp: 3, maxHp: 3,
                     bulletLvl: 1,
-                    fireRate: 0.5,  // 修改：初始攻速改为0.5
+                    fireRate: 0.5,
                     wingmanCount: 0,
                     invulnerable: 0,
                     damage: 1,
@@ -1329,7 +1280,7 @@
                 document.getElementById('hp').textContent = 3;
                 document.getElementById('maxHp').textContent = 3;
                 document.getElementById('bulletLvl').textContent = 1;
-                document.getElementById('fireRate').textContent = 50;  // 修改：显示50%
+                document.getElementById('fireRate').textContent = 50;
                 document.getElementById('wingman').textContent = 0;
                 document.getElementById('wave').textContent = 1;
                 document.getElementById('weaponType').textContent = '普通弹';
@@ -1341,7 +1292,7 @@
             // 控制系统
             var touchX = 0, touchY = 0;
             var lastTouchTime = 0;
-            var touchThrottle = 16; // 限制触摸更新频率为约60FPS
+            var touchThrottle = 16;
             
             canvas.addEventListener('touchstart', function(e) {
                 if(!game.running) return;
@@ -1355,7 +1306,6 @@
                 if(!game.running) return;
                 e.preventDefault();
                 
-                // 节流触摸移动事件
                 var now = Date.now();
                 if (now - lastTouchTime < touchThrottle) return;
                 lastTouchTime = now;
